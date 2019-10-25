@@ -1,0 +1,179 @@
+#!/bin/bash
+# 2018-05-28 Quik parse попытка
+# 2018-02-16 Версия 1.1 Добавлены столбцы в итоговый файл
+# 2018-02-19 Добавлены кавычки для предотвращение переноса строки в номерах лицензий в excell
+# 2018-02-19 Добавлен sed для замены /n -> ;  @@;  -> \n
+# удалены для лицензий кавычки для  проверке в excell
+
+#if [ -z "$1" ]; then
+#	fnExt=""
+#else
+#	fnExt=""$1
+#fi
+
+# separator
+sp='	' 
+
+#path_src="/cygdrive/w/src"
+path_src="./src"
+path_zip="./zip"
+path_res="./res"
+t1="./log/p1.log"
+t2="./log/p2.log"
+log="./log/parsz.log"
+ 
+fnExt=""$1
+
+start=`date +%s`
+oldlap=start
+dt=`date '+%Y-%m-%d %H:%M:%S'`
+end=`date +%s`
+runtime=$((end-start))
+
+wfiles_no=$(cat <<-END
+20160826
+20160910
+20161010
+20161125
+20161212
+END
+)
+
+wfiles=$(cat <<-END
+20170111
+20170210
+20170310
+20170410
+20170510
+20170611
+20170710
+20170810
+20170911
+20171010
+20171110
+20171211
+20180111
+20180212
+20180312
+20180410
+20180510
+20180610
+20180710
+20180810
+20180910
+20181010
+20181110
+20181210
+20190110
+20190210
+20190310
+20190410
+20190510
+20190610
+20190710
+20190810
+20190910
+20191010
+END
+)
+
+echo $wfiles
+
+newlap=`date +%s`; runtime=$((newlap-start)); laptime=$((newlap-oldlap))
+
+cnt_fdir=0
+
+total_cnt_fdir=`echo $wfiles | tr -cd ' ' | wc -c`
+
+str_total="\n**************** Parcing start $dt [$total_cnt_fdir] ****************\n" 
+printf "$str_total"
+
+
+for fdir in $(echo $wfiles); do
+
+cnt_fdir=$(($cnt_fdir+1))
+
+newlap1=`date +%s`;
+
+f_res=$path_res/rmsp-$fdir.csv
+
+newlap=`date +%s`;
+str_unzip="$str_total **** $newlap *** unzip from: $path_zip/$fdir.zip to $path_src/$fdir/" 
+#unzip -Z1 $path_zip/$fdir.zip | head -50 | sed 's| |\\ |g' | xargs unzip -n -q $path_zip/$fdir.zip -d $path_src/$fdir/
+unzip -n -q $path_zip/$fdir.zip -d $path_src/$fdir/
+
+echo $f_res
+
+echo "inn$sp\
+Наименование МСП$sp\
+Категория$sp\
+Вид$sp\
+ОКВЭД (КОД)$sp\
+ДатаВключения" > $f_res
+
+#str_files="найдено файлов `find /usr/bin/find ./src/$fdir/ -type f -and -iname "*.xml"`"
+#filenum=`ls ./src/$fdir/ | wc -l`
+file_cnt="`ls -1q ./src/$fdir/ | wc -l`"
+
+cnt=0
+
+
+		for file in `find /usr/bin/find ./src/$fdir/ -type f -and -iname "*.xml"`; 	
+		do 
+		cnt=$(($cnt+1))
+		clear
+		
+		dt=`date '+%Y-%m-%d %H:%M:%S'`
+		newlap=`date +%s`; runtime=$((newlap-start)); laptime=$((newlap-newlap1))
+		
+		pers=$(($cnt*100/$file_cnt));
+		
+		str_loop="[$runtime] $laptime sec. [$dt] $cnt/$file_cnt ($pers%%) [$cnt_fdir/$total_cnt_fdir] $fdir"
+		printf "$str_total\n*** $str_loop"
+		
+
+		xmlstarlet sel -I NAME -T -f -t -m "//Документ" \
+			-v "ОргВклМСП/@ИННЮЛ" -v "ИПВклМСП/@ИННФЛ" -o "$sp" \
+			-v "ОргВклМСП/@НаимОрг"  -v "concat(ИПВклМСП/ФИОИП/@Фамилия,' ',ИПВклМСП/ФИОИП/@Имя,' ',ИПВклМСП/ФИОИП/@Отчество)" -o "$sp" \
+			-v "@КатСубМСП" -o "$sp" \
+			-v "@ВидСубМСП" -o "$sp" \
+			-v "СвОКВЭД/СвОКВЭДОсн/@КодОКВЭД"  -o "$sp" \
+			-v "@ДатаВклМСП" -n \
+			$file >> $f_res
+			# -o "$sp $file" -n \	
+
+		done
+
+
+#newlap=`date +%s`; runtime=$((newlap-start)); laptime=$((newlap-oldlap))
+
+#str_total="$str_total $str_loop *\n****Удаляем переносы   ${laptime}, $runtime sec"
+# Не удаляем переносы строк в значениях кроме последних 
+
+#sed -e ':a;N;$!ba;s/\n/;/g' $f_res > $path_res/_sed_tmp_$fnExt.csv
+#sed -e 's/@@;/\n/g' $path_res/_sed_tmp_$fnExt.csv > $f_res
+#rownum=`grep -o '@@' ${f_res} | wc -l`
+
+newlap=`date +%s`; runtime=$((newlap-start)); laptime=$((newlap-oldlap))
+oldlap=`date +%s`
+dt=`date '+%Y-%m-%d %H:%M:%S'`
+
+rownum=`wc -l $f_res`
+
+str_total="$str_total\n$str_loop, строк: $rownum *** $dt ************\n\n `head -n 2 $f_res` \n--------------------------------------------------------\n`tail -n 1 $f_res` \n"
+
+#printf "$str_total"
+
+done
+
+end=`date +%s`; runtime=$((end-start)); dt=`date '+%Y-%m-%d %H:%M:%S'`
+
+# удаляем исходные XML файлы
+#rm -rf $path_src/$fnExt/*
+#echo "Удаляем исходные XML файлы rm -rf $path_src/$fnExt/*"
+clear
+str_total="$str_total\n\n ************* Обработка завершена  ${dt}, $runtime sec"
+
+printf "$str_total"
+
+printf "$str_total" | cat - $log > temp && mv temp $log

@@ -1,0 +1,79 @@
+#!/bin/bash
+# **************** batch downloader from rmsp v 1.0. 2018-02-15 ***********************
+start=`date +%s`
+dt=`date`
+logFn='./log/output_wget.log'
+
+wfiles=$(cat <<-END
+08262016
+09102016
+10102016
+11252016
+12122016
+01112017
+02102017
+03102017
+04102017
+05102017
+06112017
+07102017
+08102017
+09112017
+10102017
+11102017
+12112017
+01112018
+02122018
+03122018
+04102018
+05102018
+06102018
+07102018
+08102018
+09102018
+10102018
+11102018
+12102018
+01102019
+02102019
+03102019
+04102019
+05102019
+06102019
+07102019
+08102019
+09102019
+10102019
+END
+)
+
+printf "********************************************************************************************\n" | tee tmp_output.log
+echo "*                        ${dt} wget                                     *" | tee -a tmp_output.log
+printf "*********************************************************************************************\n\n" | tee -a tmp_output.log
+
+#while IFS='\n' read -ra ADDR; do
+#done <<< "$wfiles"
+
+ for i in $(echo $wfiles) ; do
+	
+	fnzip="${i:4:4}${i:0:2}${i:2:2}"
+	
+	[[ $fnzip < 20191010 ]] && struct="08012016" || struct="10102019"
+	
+	echo $fnzip
+	
+	url="http://file.nalog.ru/opendata/7707329152-rsmp/data-$i-structure-$struct.zip"
+	
+#	FILESIZE=$(wget --spider $url  2>&1 | awk '/Length/ {print $2}')
+#	wget -c $url -O ./zip/$fnzip.zip 3>&1 | tee -a  tmp_output.log 
+#	end=`date +%s`; runtime=$((end-start)); dt=`date '+%Y-%m-%d %H:%M:%S'`
+#	printf "\n**** $dt  $runtime, $i, $fnzip, size=$(($FILESIZE/1024/1024)) " | tee -a  tmp_output.log 
+ done
+
+
+
+end=`date +%s`; runtime=$((end-start)); dt=`date '+%Y-%m-%d %H:%M:%S'`
+
+printf "\n\n***************** finish $dt  $runtime "
+
+cat tmp_output.log $logFn  > tmp_output2.log;  mv tmp_output2.log $logFn
